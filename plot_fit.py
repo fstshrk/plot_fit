@@ -282,10 +282,10 @@ def plot_map(df: pd.DataFrame, out_path: Path):
         lon = lon * (180 / 2**31)
     coords = list(zip(lat, lon))
     centre = [lat.mean(), lon.mean()]
-    m = folium.Map(location=centre, zoom_start=13, tiles="CartoDB dark_matter")
-    folium.PolyLine(coords, color="#f97316", weight=3, opacity=0.85).add_to(m)
-    folium.Marker(coords[0],  popup="Start", icon=folium.Icon(color="green")).add_to(m)
-    folium.Marker(coords[-1], popup="End",   icon=folium.Icon(color="red")).add_to(m)
+    m = folium.Map(location=centre, zoom_start=13, tiles="OpenStreetMap")
+    folium.PolyLine(coords, color="#e11d48", weight=5, opacity=0.9).add_to(m)
+    folium.Marker(coords[0],  popup="Start", icon=folium.Icon(color="green", icon="play")).add_to(m)
+    folium.Marker(coords[-1], popup="End",   icon=folium.Icon(color="red",   icon="stop")).add_to(m)
 
     out_html = out_path.with_suffix(".html")
     m.save(str(out_html))
