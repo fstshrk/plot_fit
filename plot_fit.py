@@ -68,7 +68,23 @@ FIELD_CONFIG = {
         "unit": "J",
         "smooth": 1,
     },
+    "battery_level": {
+        "label": "Battery (%)",
+        "color": "#84cc16",
+        "unit": "%",
+        "smooth": 1,
+    },
+    "battery_voltage": {
+        "label": "Battery Voltage (V)",
+        "color": "#84cc16",
+        "unit": "V",
+        "smooth": 1,
+        "scale": 0.001,  # mV → V if stored as millivolts
+    },
 }
+
+# Battery fields that may appear in device_info_mesgs instead of record_mesgs
+BATTERY_FIELDS = {"battery_level", "battery_voltage", "battery_status"}
 
 DEFAULT_FIELDS = ["power", "heart_rate", "speed", "cadence", "altitude"]
 
@@ -119,6 +135,14 @@ def parse_fit(path: Path) -> pd.DataFrame:
         sys.exit("No 'record' messages found in the .fit file.")
 
     df = pd.DataFrame(records)
+
+    # Pull battery fields from device_info_mesgs if not in records
+    device_msgs = messages.get("device_info_mesgs", [])
+    for field in BATTERY_FIELDS:
+        if field not in df.columns:
+            vals = [r[field] for r in device_msgs if field in r and r[field] is not None]
+            if vals:
+                df[field] = vals[0]  # scalar — same value across all rows
 
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
@@ -250,11 +274,14 @@ def plot_map(df: pd.DataFrame, out_path: Path):
     if "position_lat" not in df.columns or "position_long" not in df.columns:
         sys.exit("No GPS data found in this .fit file.")
 
-    # garmin-fit-sdk already returns degrees (not semicircles)
-    coords = list(
-        zip(df["position_lat"].dropna(), df["position_long"].dropna())
-    )
-    centre = [df["position_lat"].mean(), df["position_long"].mean()]
+    # garmin-fit-sdk returns raw semicircles for some devices (e.g. COROS)
+    lat = df["position_lat"].dropna()
+    lon = df["position_long"].dropna()
+    if lat.abs().max() > 90:  # semicircles, not degrees
+        lat = lat * (180 / 2**31)
+        lon = lon * (180 / 2**31)
+    coords = list(zip(lat, lon))
+    centre = [lat.mean(), lon.mean()]
     m = folium.Map(location=centre, zoom_start=13, tiles="CartoDB dark_matter")
     folium.PolyLine(coords, color="#f97316", weight=3, opacity=0.85).add_to(m)
     folium.Marker(coords[0],  popup="Start", icon=folium.Icon(color="green")).add_to(m)
@@ -276,8 +303,8 @@ def main():
     )
     parser.add_argument("fit_file", help="Path to the .fit file")
     parser.add_argument(
-        "--fields", nargs="+", default=DEFAULT_FIELDS, metavar="FIELD",
-        help=f"Fields to plot (default: {' '.join(DEFAULT_FIELDS)})",
+        "--fields", default=",".join(DEFAULT_FIELDS), metavar="FIELD1,FIELD2,...",
+        help=f"Comma-separated fields to plot (default: {','.join(DEFAULT_FIELDS)})",
     )
     parser.add_argument(
         "--map", action="store_true",
@@ -288,7 +315,6 @@ def main():
         help="List all fields in every message type and exit",
     )
     args = parser.parse_args()
-
     fit_path = Path(args.fit_file)
     if not fit_path.exists():
         sys.exit(f"File not found: {fit_path}")
@@ -305,7 +331,7 @@ def main():
     if args.map:
         plot_map(df, fit_path)
 
-    plot_fields(df, args.fields, title=fit_path.stem)
+    plot_fields(df, [f.strip() for f in args.fields.split(",")], title=fit_path.stem)
 
 
 if __name__ == "__main__":
