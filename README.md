@@ -1,6 +1,6 @@
 # plot-fit
 
-Visualize cycling data from `.fit` files produced by Garmin and other bike computers.
+Visualize cycling data from `.fit` files produced by Garmin, COROS, and other bike computers.
 
 ## Installation
 
@@ -20,11 +20,11 @@ pip install folium
 python plot_fit.py ride.fit
 ```
 
-This plots power, heart rate, speed, cadence, and altitude by default.
+Plots power, heart rate, speed, cadence, and altitude by default.
 
 **Choose specific fields:**
 ```bash
-python plot_fit.py ride.fit --fields power heart_rate cadence
+python plot_fit.py ride.fit --fields "power,heart_rate,cadence"
 ```
 
 **See all fields available in a file:**
@@ -37,7 +37,7 @@ python plot_fit.py ride.fit --list-fields
 python plot_fit.py ride.fit --map
 ```
 
-This saves a `ride.html` file you can open in a browser.
+Saves a `ride.html` file you can open in any browser.
 
 ## Plottable fields
 
@@ -51,8 +51,17 @@ Any field listed under `[record]` by `--list-fields` can be plotted. Common ones
 | `cadence` | Cadence (rpm) |
 | `altitude` | Elevation (m) |
 | `temperature` | Temperature (°C) |
+| `accumulated_power` | Cumulative power (J) |
+| `battery_level` | Battery level (%) — if recorded by your device |
+
+Pass multiple fields as a comma-separated string:
+
+```bash
+python plot_fit.py ride.fit --fields "power,cadence,heart_rate,altitude"
+```
 
 ## Notes
 
-- Uses [garmin-fit-sdk](https://github.com/garmin/fit-python-sdk) rather than `fitparse`, which fails to parse newer Garmin files correctly.
-- `--list-fields` shows all message types in the file, not just time-series records. Only fields under `[record]` are plottable over time; fields under `[session]` and `[lap]` are single-value summaries printed to the console.
+- Uses [garmin-fit-sdk](https://github.com/garmin/fit-python-sdk) rather than `fitparse`, which fails on newer Garmin and COROS files.
+- `--list-fields` shows every message type in the file. Only fields under `[record]` are time-series and plottable; fields under `[session]` and `[lap]` are single-value summaries printed to the console.
+- Battery data availability depends on your device firmware. COROS devices currently do not record battery level in `.fit` files.
